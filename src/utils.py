@@ -32,7 +32,7 @@ def get_historical_data(share, start_date='2019-01-02', end_date='2019-12-31', s
         panel_data = pd.DataFrame()
     return panel_data
 
-def compute_average_annual_return(share, start_date='2019-01-02', end_date='2019-12-31', source='yahoo'):
+def compute_average_annual_return(share, start_date='2000-01-02', end_date='2019-12-31', source='yahoo'):
     panel_data = get_historical_data(share, start_date, end_date, source)
     if panel_data.empty:
         return None, None, None, None, None
@@ -102,24 +102,6 @@ def plot_stock_price(stock, start_date='2019-01-02', end_date='2019-12-31', sour
     start_price = daa.loc[start_date_datetime.strftime('%Y-%m-%d')]['Adj Close']
     annual_ret = (end_price/start_price)**(1/duration)-1
     return round(annual_ret, 4)
-
-def compute_avg_annual_return_between_2_periods(shares, start_date='2000-01-02', end_date='2019-12-31', source='yahoo'):
-    shares_data = get_historical_data(shares, start_date=start_date, end_date=end_date, source=source)
-    adj_close = shares_data['Adj Close']
-    
-    start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')
-    end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d')
-    
-    while start_date.strftime('%Y-%m-%d') not in adj_close.index: 
-        start_date = next_business_day(start_date)
-    
-    while end_date.strftime('%Y-%m-%d') not in adj_close.index: 
-        end_date = previous_business_day(end_date)
-    
-    start_prices = adj_close.loc[start_date.strftime('%Y-%m-%d')]
-    end_prices = adj_close.loc[end_date.strftime('%Y-%m-%d')]
-    #print(end_prices, start_prices)
-    return (end_prices/start_prices)**(1/(end_date.year - start_date.year)) - 1
 
 def plot_us_gdp(start_date = '1900-01-01', end_date = '2020-01-01'):
     plt.figure(figsize=(16,6))
