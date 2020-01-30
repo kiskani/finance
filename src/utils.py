@@ -55,7 +55,7 @@ def compute_average_annual_return(share, start_date='2000-01-02', end_date='2019
     end_price = adj_close.loc[end_date.strftime('%Y-%m-%d')]
     
     return_value = (end_price/start_price)**(1/years) - 1
-    return round(return_value, 4), start_date, end_date, delta, years
+    return round(100*return_value, 2), start_date, end_date, delta, years
 
 def compute_daily_return_std_per_year(share, start_date='2019-01-02', end_date='2019-12-31', source='yahoo'):
     panel_data = get_historical_data(share, start_date, end_date, source)
@@ -170,12 +170,17 @@ def plot_yield_curve(specific_date):
     return yc.loc[specific_date]
 
 def compute_stats(symb):
-    ticker = data.get_quote_yahoo(symb)
-    ticker['c1_marketCap_bn_calc'] = ticker['price'] * ticker['sharesOutstanding'] / 1e9
-    ticker['c2_marketCap_bn_orig'] = ticker['marketCap'] / 1e9
-    ticker['c3_price_calc'] = ticker['epsForward'] * ticker['trailingPE']
-    ticker['c4_earnings_bn_calc'] = ticker['epsForward'] * ticker['sharesOutstanding'] / 1e9
-    ticker['c5_25_times_PE_limit'] = 25 * ticker['trailingPE'] # A higher price than this value is risky
+    try:
+        ticker = data.get_quote_yahoo(symb)
+        ticker['c1_marketCap_bn_calc'] = ticker['price'] * ticker['sharesOutstanding'] / 1e9
+        ticker['c2_marketCap_bn_orig'] = ticker['marketCap'] / 1e9
+        ticker['c3_price_calc'] = ticker['epsForward'] * ticker['trailingPE']
+        ticker['c4_earnings_bn_calc'] = ticker['epsForward'] * ticker['sharesOutstanding'] / 1e9
+        ticker['c5_25_times_PE_limit'] = 25 * ticker['trailingPE'] # A higher stock price than this value is risky
+        ticker['c6_20_times_PE_limit'] = 20 * ticker['trailingPE'] # A higher stock price than this value is moderately risky
+    except:
+        print("Could not resolve some tickers.")
+        ticker = pd.DataFrame()
     return ticker
 
 def compare_dollar_cost_averaging_return(symb, window_length=30, start_date='2000-01-02', end_date='2019-12-31'):
