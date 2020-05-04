@@ -9,6 +9,7 @@ import holidays   # You will need to run "pip install holidays"
 import datetime 
 import numpy as np
 from dateutil.relativedelta import relativedelta
+import collections
 
 ONE_DAY = datetime.timedelta(days=1)
 HOLIDAYS_US = holidays.US()
@@ -47,7 +48,7 @@ def compute_average_annual_return(share, start_date='2000-01-02', end_date='2019
     
     while end_date.strftime('%Y-%m-%d') not in adj_close.index: 
         end_date = previous_business_day(end_date)
-    
+   
     delta = end_date - start_date
     years = delta.days / 365
     
@@ -183,43 +184,54 @@ def compute_stats(symb):
         ticker = pd.DataFrame()
     return ticker
 
-def compare_dollar_cost_averaging_return(symb, window_length=30, start_date='2000-01-02', end_date='2019-12-31'):
-    #window_length is in days
-    #Option 1 --> Dollar cost averaging --> buy shares number of shares
-    #Option 2 --> Save up all monthly contributions --> buy end_shares at the end
+def compare_dollar_cost_averaging_return(symb, start_date='2000-01-02', end_date='2019-12-31', window_length=7):
+    # window_length is in days 
+    # We buy a fixed number of shares every window_length days. If that day is holiday or is not a business
+    # day, we buy the same worth of dollars the next business day. 
+    
+    # Goal is to compare putting money in the bank with zero return as opposed to buying a fixed dollar amount
+    # every window_length days
 
-    start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')
-    curr_date = next_business_day(start_date)
-    shares, counts = 0, 0
+    # Current implementation assumes that inflation rate is zero. For a more accurate model, we also need to 
+    # include inflation analysis in the future versions of this function. 
 
-    while curr_date < datetime.datetime.strptime(end_date, '%Y-%m-%d'):
-        counts += 1
-        curr_date += datetime.timedelta(days=window_length)
-        curr_date = next_business_day(curr_date)
-        try:
-            date_df = data.DataReader(symb, 'yahoo', curr_date, curr_date)
-        except:
-            date_df = pd.DataFrame()
-            break
+    start_dtime = datetime.datetime.strptime(start_date, '%Y-%m-%d')
+    end_dtime = datetime.datetime.strptime(end_date, '%Y-%m-%d')
 
+    try:
+        date_df = data.DataReader(symb, 'yahoo', start_dtime, end_dtime)
+    except:
+        print("Could not get the data for {} from {} to {}".format(symb, start_date, end_date))
+        return None
+
+    purchase_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')
+    shares, count = 0, 0
+    while purchase_date < datetime.datetime.strptime(end_date, '%Y-%m-%d'):
+        purchase_date = next_business_day(purchase_date)
         adj_close = date_df['Adj Close']
-
-        date_price = adj_close.loc[curr_date.strftime('%Y-%m-%d')]
-
+        if purchase_date.strftime('%Y-%m-%d') not in date_df.index:
+            purchase_date += datetime.timedelta(days=1)
+            continue 
+        date_price = adj_close.loc[purchase_date.strftime('%Y-%m-%d')]
         shares += 1/date_price
+        count += 1
+        purchase_date += datetime.timedelta(days=window_length)
 
     end_biz = previous_business_day(datetime.datetime.strptime(end_date, '%Y-%m-%d'))
     end_df = data.DataReader(symb, 'yahoo', end_biz, end_biz)
-    print(end_df)
-    if end_df.empty:
-            return None
-
     end_adj_close = end_df['Adj Close']
     end_price = end_adj_close.loc[end_biz.strftime('%Y-%m-%d')]
-
-    end_shares = counts/end_price
-
-    return shares/end_shares - 1
+    end_value_of_shares = end_price * shares
+    
+    overall_return = (end_value_of_shares / count) - 1
+    duration = end_dtime.year - start_dtime.year 
+    
+    if duration == 0:
+        avg_yearly_return = overall_return
+    else:
+        avg_yearly_return = (end_value_of_shares / count)**(1/duration)-1
+    
+    return round(100*(overall_return), 2), round(100*(avg_yearly_return), 2)
 
 def plot_housing_index(city, state):
     housing_data = pd.read_csv("../resources/City_Zhvi_SingleFamilyResidence.csv", encoding = "ISO-8859-1")
